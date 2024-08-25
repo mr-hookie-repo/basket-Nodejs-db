@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  app:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/acme-widget-co:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=${RDS_ENDPOINT}
+      - DB_USER=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${ELASTICACHE_ENDPOINT}
+      - AWS_REGION=${AWS_REGION}
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: acme-widget-co-logs
+        awslogs-region: ${AWS_REGION}
+        awslogs-stream-prefix: app
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - acme-network
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - acme-network
+
+  redis:
+    image: redis:6
+    networks:
+      - acme-network
+
+networks:
+  acme-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
+
+x-aws-cloudformation:
+  Resources:
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        ClusterName: acme-widget-co-cluster
+
+    ECSTaskDefinition:
+      Type: AWS::ECS::TaskDefinition
+      Properties:
+        Family: acme-widget-co-task
+        Cpu: '256'
+        Memory: '512'
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        ExecutionRoleArn: ${ECS_EXECUTION_ROLE_ARN}
+        TaskRoleArn: ${ECS_TASK_ROLE_ARN}
+        ContainerDefinitions:
+          - Name: app
+            Image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/acme-widget-co:latest
+            PortMappings:
+              - ContainerPort: 3000
+            Environment:
+              - Name: NODE_ENV
+                Value: production
+              - Name: DB_HOST
+                Value: ${RDS_ENDPOINT}
+              - Name: REDIS_HOST
+                Value: ${ELASTICACHE_ENDPOINT}
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-group: acme-widget-co-logs
+                awslogs-region: ${AWS_REGION}
+                awslogs-stream-prefix: app
+
+    ECSService:
+      Type: AWS::ECS::Service
+      Properties:
+        ServiceName: acme-widget-co-service
+        Cluster: !Ref ECSCluster
+        TaskDefinition: !Ref ECSTaskDefinition
+        DesiredCount: 2
+        LaunchType: FARGATE
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            AssignPublicIp: ENABLED
+            Subnets:
+              - ${SUBNET_1}
+              - ${SUBNET_2}
+            SecurityGroups:
+              - ${SECURITY_GROUP}
+
+    RDSInstance:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        DBName: ${DB_NAME}
+        Engine: postgres
+        MasterUsername: ${DB_USERNAME}
+        MasterUserPassword: ${DB_PASSWORD}
+        DBInstanceClass: db.t3.micro
+        AllocatedStorage: '20'
+        PubliclyAccessible: false
+        VPCSecurityGroups:
+          - ${DB_SECURITY_GROUP}
+
+    ElastiCacheCluster:
+      Type: AWS::ElastiCache::CacheCluster
+      Properties:
+        ClusterName: acme-widget-co-cache
+        Engine: redis
+        CacheNodeType: cache.t3.micro
+        NumCacheNodes: 1
+        VpcSecurityGroupIds:
+          - ${CACHE_SECURITY_GROUP}
+
+    CloudWatchLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: acme-widget-co-logs
+        RetentionInDays: 30
