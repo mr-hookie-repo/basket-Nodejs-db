@@ -1,0 +1,79 @@
+{
+    "name": "acme-widget-co-sales-system",
+    "version": "1.0.0",
+    "description": "A proof of concept sales system for Acme Widget Co, handling product management, offers, and basket calculations",
+    "main": "src/index.js",
+    "scripts": {
+      "start": "node src/index.js",
+      "dev": "nodemon src/index.js",
+      "test": "jest",
+      "test:watch": "jest --watch",
+      "test:coverage": "jest --coverage",
+      "lint": "eslint .",
+      "lint:fix": "eslint . --fix",
+      "docker:build": "docker build -t acme-widget-co -f docker/Dockerfile .",
+      "docker:run": "docker run -p 3000:3000 acme-widget-co",
+      "docker:compose": "docker-compose -f docker/docker-compose.yml up",
+      "docker:compose:down": "docker-compose -f docker/docker-compose.yml down"
+    },
+    "keywords": [
+      "sales",
+      "ecommerce",
+      "basket",
+      "offers",
+      "nodejs"
+    ],
+    "author": "Mostafa Raddaoui",
+    "license": "MIT",
+    "dependencies": {
+      "express": "^4.17.1",
+      "config": "^3.3.6"
+    },
+    "devDependencies": {
+      "jest": "^27.0.6",
+      "eslint": "^7.32.0",
+      "eslint-config-airbnb-base": "^14.2.1",
+      "eslint-plugin-import": "^2.24.2",
+      "eslint-plugin-jest": "^24.4.0",
+      "nodemon": "^2.0.12",
+      "supertest": "^6.1.6"
+    },
+    "jest": {
+      "testEnvironment": "node",
+      "coverageDirectory": "./coverage/",
+      "collectCoverage": true
+    },
+    "eslintConfig": {
+      "extends": [
+        "airbnb-base",
+        "plugin:jest/recommended"
+      ],
+      "env": {
+        "node": true,
+        "jest": true
+      },
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    "nodemonConfig": {
+      "ignore": [
+        "**/*.test.js",
+        "**/*.spec.js",
+        ".git",
+        "node_modules"
+      ],
+      "delay": "2500"
+    },
+    "engines": {
+      "node": ">=14.0.0"
+    },
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/mr-hookie-repo/basket-Nodejs-db.git"
+    },
+    "bugs": {
+      "url": "https://github.com/mr-hookie-repo/basket-Nodejs-db.git/issues"
+    },
+    "homepage": "https://github.com/mr-hookie-repo/basket-Nodejs-db.git#readme"
+  }
